@@ -108,8 +108,8 @@
         </div>
     </div>
 
-    <!-- VUES FULLSCREEN (QCM & BILAN) -->
-    <div id="view-qcm" class="view-fullscreen hidden">
+    <!-- VUES FULLSCREEN (QCM & BILAN) - Corrigées (plus de "hidden") -->
+    <div id="view-qcm" class="view-fullscreen">
         <header class="qcm-header">
             <button class="btn-back" onclick="quitSession()">❮ Quitter</button>
             <div class="qcm-title">
@@ -134,7 +134,7 @@
         </div>
     </div>
 
-    <div id="view-summary" class="view-fullscreen hidden">
+    <div id="view-summary" class="view-fullscreen">
          <header class="qcm-header">
             <div class="qcm-title"><span>Bilan de la session</span></div>
         </header>
@@ -198,7 +198,6 @@
         <div class="tab" onclick="switchTab('settings')">⚙️<br>Réglages</div>
     </nav>
 
-    <!-- UN SEUL SCRIPT POUR EVITER LES BUGS -->
     <script src="app.js"></script>
 </body>
 </html>
