@@ -11,7 +11,6 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-// Initialisation de la page
 document.addEventListener('DOMContentLoaded', () => {
     updateFolderSelects();
     renderCreateItems();
@@ -24,7 +23,6 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('view-' + tabId).classList.add('active');
     
-    // Trouver le tab cliqué
     const tabs = document.querySelectorAll('.tab');
     if(tabId === 'home') tabs[0].classList.add('active');
     if(tabId === 'folders') tabs[1].classList.add('active');
@@ -85,7 +83,6 @@ function toggleFolder(folderId) {
     document.getElementById(`content-${folderId}`).classList.toggle('open');
 }
 
-// Modal Dossier
 let currentEditFolderId = null;
 function showFolderModal() {
     currentEditFolderId = null;
@@ -213,14 +210,13 @@ function fastAddQCM() {
     alert(`${addedCount} QCM ajouté(s) avec succès !`);
 }
 
-// Modification QCM
 let currentEditQcmId = null;
 function openEditQcmModal(qcmId) {
     currentEditQcmId = qcmId;
     const qcm = qcms.find(q => q.id === qcmId);
     
     document.getElementById('edit-qcm-question').value = qcm.question;
-    updateFolderSelects(); // Assurer que le select est plein
+    updateFolderSelects(); 
     document.getElementById('edit-qcm-folder').value = qcm.folderId;
     
     ['A','B','C','D','E'].forEach(letter => {
@@ -474,11 +470,19 @@ function exportData(includeStats) {
         dataToExport = JSON.parse(JSON.stringify(dataToExport));
         dataToExport.qcms.forEach(q => { q.attempts = 0; q.successes = 0; q.lastPlayed = null; });
     }
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport));
+    
+    // Utilisation de Blob, la méthode robuste pour tous les navigateurs mobiles
+    const dataStr = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
     const dl = document.createElement('a');
-    dl.setAttribute("href", dataStr);
-    dl.setAttribute("download", includeStats ? "QCM_P1_Backup.json" : "QCM_P1_Partage.json");
-    document.body.appendChild(dl); dl.click(); dl.remove();
+    dl.href = url;
+    dl.download = includeStats ? "QCM_P1_Backup.json" : "QCM_P1_Partage.json";
+    document.body.appendChild(dl); 
+    dl.click(); 
+    document.body.removeChild(dl);
+    URL.revokeObjectURL(url);
 }
 
 function importData(event) {
