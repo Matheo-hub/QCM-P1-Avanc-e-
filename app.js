@@ -298,7 +298,7 @@ function deleteQcm() {
     }
 }
 
-// --- 5. MOTEUR D'ENTRAÎNEMENT (Corrigé & Forcé) ---
+// --- 5. MOTEUR D'ENTRAÎNEMENT ---
 let currentSession = [], currentQuestionIndex = 0, sessionMode = 'training';
 let sessionStats = { totalTime: 0, overtime: 0, answers: [] };
 let globalTimerInterval, localTimerInterval, localTimeElapsed = 0;
@@ -325,12 +325,11 @@ function startSession() {
     sessionMode = document.getElementById('home-mode-select').value;
     
     let count = parseInt(document.getElementById('home-qcm-count').value);
-    if (isNaN(count) || count <= 0) count = 20; // Sécurité si le champ est vide
+    if (isNaN(count) || count <= 0) count = 20;
     
     let pool = folderId === 'all' ? [...qcms] : qcms.filter(q => q.folderId === folderId);
     if(!pool || pool.length === 0) return alert("Aucun QCM dans ce dossier.");
     
-    // Mélange (Fisher-Yates)
     for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -346,9 +345,8 @@ function launchUI() {
     currentQuestionIndex = 0;
     sessionStats = { totalTime: 0, overtime: 0, answers: [] };
     
-    // FORCAGE ANTI-CACHE POUR AFFICHER LA VUE QCM
     const qcmView = document.getElementById('view-qcm');
-    qcmView.classList.remove('hidden'); // Détruit le verrou invisible
+    qcmView.classList.remove('hidden');
     qcmView.classList.add('active');
     
     document.getElementById('qcm-mode-title').innerText = sessionMode === 'exam' ? 'Examen P1' : 'Entraînement P1';
@@ -402,7 +400,7 @@ function renderQuestion() {
     if (sessionMode !== 'readonly') {
         localTimerInterval = setInterval(() => {
             localTimeElapsed++;
-            const timeLeft = 80 - localTimeElapsed; // 1min20
+            const timeLeft = 80 - localTimeElapsed;
             if (timeLeft >= 0) {
                 localDisplay.innerText = formatTime(timeLeft);
             } else {
@@ -505,10 +503,10 @@ function finishSession() {
     
     const qcmView = document.getElementById('view-qcm');
     qcmView.classList.remove('active');
-    qcmView.classList.add('hidden'); // On referme proprement
+    qcmView.classList.add('hidden');
     
     const summaryView = document.getElementById('view-summary');
-    summaryView.classList.remove('hidden'); // Anti-cache
+    summaryView.classList.remove('hidden');
     summaryView.classList.add('active');
     
     let correctCount = sessionStats.answers.filter(a => a.status === 'correct').length;
@@ -566,7 +564,7 @@ function quitSession() {
     }
 }
 
-// --- 6. EXPORT / IMPORT / RESET ---
+// --- 6. EXPORT / IMPORT (Modifié pour Fusionner) / RESET ---
 function exportData(includeStats) {
     let dataToExport = { folders: folders, qcms: qcms };
     if (!includeStats) {
@@ -595,10 +593,43 @@ function importData(event) {
         try {
             const imported = JSON.parse(e.target.result);
             if(imported.folders && imported.qcms) {
-                folders = imported.folders; qcms = imported.qcms;
-                saveData(); alert('Importation réussie !'); location.reload();
-            } else alert("Fichier non reconnu.");
-        } catch(err) { alert('Fichier invalide.'); }
+                
+                // FUSION DES DOSSIERS (On garde les vôtres, on ajoute les nouveaux sans écraser)
+                imported.folders.forEach(impFolder => {
+                    const existingFolder = folders.find(f => f.name.toLowerCase() === impFolder.name.toLowerCase());
+                    if (!existingFolder) {
+                        folders.push(impFolder);
+                    } else {
+                        // S'il existe déjà, on lui donne un identifiant pour raccrocher les QCM si besoin
+                        impFolder.oldId = impFolder.id;
+                        impFolder.id = existingFolder.id;
+                    }
+                });
+
+                // FUSION DES QCM (On ajoute les nouveaux QCM dans les bons dossiers)
+                imported.qcms.forEach(impQcm => {
+                    // On vérifie si le QCM existe déjà (par son intitulé exact) pour éviter les doublons parfaits
+                    const exists = qcms.some(q => q.question.trim().toLowerCase() === impQcm.question.trim().toLowerCase());
+                    if (!exists) {
+                        // Si le dossier cible a été mappé suite à une fusion, on met à jour son ID
+                        const matchingFolder = folders.find(f => f.id === impQcm.folderId || f.oldId === impQcm.folderId);
+                        if (matchingFolder) {
+                            impQcm.folderId = matchingFolder.id;
+                        }
+                        // S'il n'a pas de dossier valide, on le met dans le premier dossier dispo ou racine
+                        qcms.push(impQcm);
+                    }
+                });
+
+                saveData();
+                alert('Importation et fusion réussies ! Vos cartes existantes ont été conservées.');
+                location.reload();
+            } else {
+                alert("Fichier non reconnu.");
+            }
+        } catch(err) {
+            alert('Fichier invalide.');
+        }
     };
     reader.readAsText(file);
 }
