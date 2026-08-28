@@ -1,4 +1,4 @@
-// --- 1. INITIALISATION ET DONNÉES (Sécurisées) ---
+// --- 1. INITIALISATION ET DONNÉES ---
 let folders = [];
 let qcms = [];
 
@@ -45,11 +45,12 @@ function switchTab(tabId) {
     if(tabId === 'create' || tabId === 'home') updateFolderSelects();
 }
 
-// --- 3. GESTION DES DOSSIERS ---
+// --- 3. GESTION DES DOSSIERS & SOUS-DOSSIERS ---
 function renderFoldersView() {
     const container = document.getElementById('folders-container');
     if(!container) return;
     container.innerHTML = '';
+    
     const rootFolders = folders.filter(f => !f.parentId);
     
     function buildFolderHTML(folder, depth = 0) {
@@ -59,7 +60,7 @@ function renderFoldersView() {
         let html = `
             <div class="folder-item" style="margin-left: ${depth * 15}px">
                 <div class="folder-header" onclick="toggleFolder('${folder.id}')">
-                    <span>📁 ${folder.name}</span>
+                    <span>${depth > 0 ? '└─ 📁 ' : '📁 '} ${folder.name}</span>
                     <span class="folder-actions" onclick="event.stopPropagation(); openEditFolderModal('${folder.id}')">Modifier</span>
                 </div>
                 <div class="folder-content" id="content-${folder.id}">
@@ -86,7 +87,7 @@ function renderFoldersView() {
                 container.innerHTML += html;
             }
             if(children.length > 0) {
-                setTimeout(() => renderTree(children, folder.id), 0);
+                renderTree(children, folder.id);
             }
         });
     }
@@ -101,21 +102,31 @@ function toggleFolder(folderId) {
 let currentEditFolderId = null;
 function showFolderModal() {
     currentEditFolderId = null;
-    document.getElementById('modal-folder-title').innerText = "Nouveau dossier";
-    document.getElementById('modal-folder-name').value = "";
+    const titleEl = document.getElementById('modal-folder-title');
+    const nameEl = document.getElementById('modal-folder-name');
+    const modalEl = document.getElementById('modal-folder');
+    
+    if(titleEl) titleEl.innerText = "Nouveau dossier / sous-dossier";
+    if(nameEl) nameEl.value = "";
     populateParentSelect();
-    document.getElementById('modal-folder').classList.remove('hidden');
+    if(modalEl) modalEl.classList.remove('hidden');
 }
 
 function openEditFolderModal(folderId) {
     currentEditFolderId = folderId;
     const folder = folders.find(f => f.id === folderId);
     if(!folder) return;
-    document.getElementById('modal-folder-title').innerText = "Modifier le dossier";
-    document.getElementById('modal-folder-name').value = folder.name;
+    
+    const titleEl = document.getElementById('modal-folder-title');
+    const nameEl = document.getElementById('modal-folder-name');
+    const parentEl = document.getElementById('modal-folder-parent');
+    const modalEl = document.getElementById('modal-folder');
+
+    if(titleEl) titleEl.innerText = "Modifier le dossier";
+    if(nameEl) nameEl.value = folder.name;
     populateParentSelect(folderId);
-    document.getElementById('modal-folder-parent').value = folder.parentId || "";
-    document.getElementById('modal-folder').classList.remove('hidden');
+    if(parentEl) parentEl.value = folder.parentId || "";
+    if(modalEl) modalEl.classList.remove('hidden');
 }
 
 function populateParentSelect(excludeId = null) {
@@ -130,12 +141,17 @@ function populateParentSelect(excludeId = null) {
 }
 
 function closeFolderModal() { 
-    document.getElementById('modal-folder').classList.add('hidden'); 
+    const modalEl = document.getElementById('modal-folder');
+    if(modalEl) modalEl.classList.add('hidden'); 
 }
 
 function saveFolderModal() {
-    const name = document.getElementById('modal-folder-name').value;
-    const parentId = document.getElementById('modal-folder-parent').value;
+    const nameEl = document.getElementById('modal-folder-name');
+    const parentEl = document.getElementById('modal-folder-parent');
+    if(!nameEl) return;
+    
+    const name = nameEl.value;
+    const parentId = parentEl ? parentEl.value : "";
     if(!name) return;
     
     if(currentEditFolderId) {
@@ -149,7 +165,7 @@ function saveFolderModal() {
 
 function deleteFolderModal() {
     if(!currentEditFolderId) return;
-    if(confirm("Supprimer ce dossier et ses QCM ?")) {
+    if(confirm("Supprimer ce dossier (et ses sous-dossiers/QCM) ?")) {
         folders = folders.filter(f => f.id !== currentEditFolderId && f.parentId !== currentEditFolderId);
         qcms = qcms.filter(q => q.folderId !== currentEditFolderId);
         saveData(); closeFolderModal(); renderFoldersView(); updateFolderSelects();
@@ -160,7 +176,8 @@ function updateFolderSelects() {
     let options = '<option value="all">Toutes les matières (Mélange général)</option>';
     let createOptions = '';
     folders.forEach(f => {
-        const opt = `<option value="${f.id}">${f.name}</option>`;
+        const prefix = f.parentId ? '└─ ' : '';
+        const opt = `<option value="${f.id}">${prefix}${f.name}</option>`;
         options += opt; createOptions += opt;
     });
     
@@ -175,7 +192,7 @@ function updateFolderSelects() {
     if(editSel) editSel.innerHTML = createOptions;
 }
 
-// --- 4. GESTION DES QCM (Création & Modif) ---
+// --- 4. GESTION DES QCM (AVEC IMAGES MANUELLES) ---
 function renderCreateItems() {
     const container = document.getElementById('create-items-container');
     if(!container) return;
@@ -188,31 +205,58 @@ function renderCreateItems() {
 }
 
 function saveNewQCM() {
-    const folderId = document.getElementById('create-folder-select').value;
-    const question = document.getElementById('create-question').value;
-    if(!question || !folderId) return alert("Remplis la question et choisis un dossier.");
-    const options = [];
-    ['A', 'B', 'C', 'D', 'E'].forEach(l => {
-        const textEl = document.getElementById(`item-${l}`);
-        const checkEl = document.getElementById(`check-${l}`);
-        if(textEl && checkEl && textEl.value) {
-            options.push({ text: textEl.value, isCorrect: checkEl.checked, letter: l });
-        }
-    });
-    qcms.push({ id: generateId(), folderId, question, options, attempts: 0, successes: 0, lastPlayed: null });
-    saveData();
+    const folderSel = document.getElementById('create-folder-select');
+    const questionEl = document.getElementById('create-question');
+    const imageInput = document.getElementById('create-image-input');
     
-    document.getElementById('create-question').value = '';
-    ['A', 'B', 'C', 'D', 'E'].forEach(l => {
-        if(document.getElementById(`item-${l}`)) document.getElementById(`item-${l}`).value = '';
-        if(document.getElementById(`check-${l}`)) document.getElementById(`check-${l}`).checked = false;
-    });
-    alert("QCM Enregistré !");
+    if(!folderSel || !questionEl) return;
+    
+    const folderId = folderSel.value;
+    const question = questionEl.value;
+    if(!question || !folderId) return alert("Remplis la question et choisis un dossier.");
+
+    const processSave = (imageUrl = null) => {
+        const options = [];
+        ['A', 'B', 'C', 'D', 'E'].forEach(l => {
+            const textEl = document.getElementById(`item-${l}`);
+            const checkEl = document.getElementById(`check-${l}`);
+            if(textEl && checkEl && textEl.value) {
+                options.push({ text: textEl.value, isCorrect: checkEl.checked, letter: l });
+            }
+        });
+        
+        qcms.push({ id: generateId(), folderId, question, imageUrl, options, attempts: 0, successes: 0, lastPlayed: null });
+        saveData();
+        
+        questionEl.value = '';
+        if(imageInput) imageInput.value = '';
+        ['A', 'B', 'C', 'D', 'E'].forEach(l => {
+            const t = document.getElementById(`item-${l}`);
+            const c = document.getElementById(`check-${l}`);
+            if(t) t.value = '';
+            if(c) c.checked = false;
+        });
+        alert("QCM Enregistré avec succès !");
+    };
+
+    if (imageInput && imageInput.files && imageInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            processSave(e.target.result);
+        };
+        reader.readAsDataURL(imageInput.files[0]);
+    } else {
+        processSave(null);
+    }
 }
 
 function fastAddQCM() {
-    const folderId = document.getElementById('fast-add-folder-select').value;
-    const text = document.getElementById('fast-add-textarea').value;
+    const folderSel = document.getElementById('fast-add-folder-select');
+    const textEl = document.getElementById('fast-add-textarea');
+    if(!folderSel || !textEl) return;
+    
+    const folderId = folderSel.value;
+    const text = textEl.value;
     if(!folderId || !text) return alert("Choisis un dossier et remplis le texte.");
     
     const lines = text.split('\n');
@@ -220,7 +264,7 @@ function fastAddQCM() {
     
     lines.forEach(line => {
         if(line.trim() === '') return;
-        const parts = line.split(';').map(p => p.trim());
+        const parts = line.split(/[;:]/).map(p => p.trim());
         if(parts.length >= 7) {
             const question = parts[0];
             const correctStr = parts[6].toUpperCase();
@@ -232,12 +276,12 @@ function fastAddQCM() {
                     options.push({ text: itemText, letter: letter, isCorrect: correctStr.includes(letter) });
                 }
             });
-            qcms.push({ id: generateId(), folderId, question, options, attempts: 0, successes: 0, lastPlayed: null });
+            qcms.push({ id: generateId(), folderId, question, imageUrl: null, options, attempts: 0, successes: 0, lastPlayed: null });
             addedCount++;
         }
     });
     saveData();
-    document.getElementById('fast-add-textarea').value = '';
+    textEl.value = '';
     alert(`${addedCount} QCM ajouté(s) avec succès !`);
 }
 
@@ -247,9 +291,16 @@ function openEditQcmModal(qcmId) {
     const qcm = qcms.find(q => q.id === qcmId);
     if(!qcm) return;
     
-    document.getElementById('edit-qcm-question').value = qcm.question;
+    const qEl = document.getElementById('edit-qcm-question');
+    const fEl = document.getElementById('edit-qcm-folder');
+    const aEl = document.getElementById('edit-qcm-answers');
+    const imageInput = document.getElementById('edit-qcm-image-input');
+    const modalEl = document.getElementById('modal-edit-qcm');
+
+    if(qEl) qEl.value = qcm.question;
     updateFolderSelects(); 
-    document.getElementById('edit-qcm-folder').value = qcm.folderId;
+    if(fEl) fEl.value = qcm.folderId;
+    if(imageInput) imageInput.value = ''; 
     
     const optionsSafe = qcm.options || [];
     ['A','B','C','D','E'].forEach(letter => {
@@ -259,34 +310,53 @@ function openEditQcmModal(qcmId) {
     });
     
     const corrects = optionsSafe.filter(o => o.isCorrect).map(o => o.letter).join(',');
-    document.getElementById('edit-qcm-answers').value = corrects;
+    if(aEl) aEl.value = corrects;
     
-    document.getElementById('modal-edit-qcm').classList.remove('hidden');
+    if(modalEl) modalEl.classList.remove('hidden');
 }
 
 function closeEditQcmModal() { 
-    document.getElementById('modal-edit-qcm').classList.add('hidden'); 
+    const modalEl = document.getElementById('modal-edit-qcm');
+    if(modalEl) modalEl.classList.add('hidden'); 
 }
 
 function saveEditQcm() {
     const qcm = qcms.find(q => q.id === currentEditQcmId);
     if(!qcm) return;
     
-    qcm.question = document.getElementById('edit-qcm-question').value;
-    qcm.folderId = document.getElementById('edit-qcm-folder').value;
-    const corrects = document.getElementById('edit-qcm-answers').value.toUpperCase();
-    
-    qcm.options = [];
-    ['A','B','C','D','E'].forEach(letter => {
-        const el = document.getElementById(`edit-qcm-${letter.toLowerCase()}`);
-        if(el && el.value) {
-            qcm.options.push({ letter: letter, text: el.value, isCorrect: corrects.includes(letter) });
-        }
-    });
-    
-    saveData();
-    closeEditQcmModal();
-    renderFoldersView();
+    const qEl = document.getElementById('edit-qcm-question');
+    const fEl = document.getElementById('edit-qcm-folder');
+    const aEl = document.getElementById('edit-qcm-answers');
+    const imageInput = document.getElementById('edit-qcm-image-input');
+
+    const processUpdate = () => {
+        if(qEl) qcm.question = qEl.value;
+        if(fEl) qcm.folderId = fEl.value;
+        const corrects = aEl ? aEl.value.toUpperCase() : '';
+        
+        qcm.options = [];
+        ['A','B','C','D','E'].forEach(letter => {
+            const el = document.getElementById(`edit-qcm-${letter.toLowerCase()}`);
+            if(el && el.value) {
+                qcm.options.push({ letter: letter, text: el.value, isCorrect: corrects.includes(letter) });
+            }
+        });
+        
+        saveData();
+        closeEditQcmModal();
+        renderFoldersView();
+    };
+
+    if (imageInput && imageInput.files && imageInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            qcm.imageUrl = e.target.result; 
+            processUpdate();
+        };
+        reader.readAsDataURL(imageInput.files[0]);
+    } else {
+        processUpdate();
+    }
 }
 
 function deleteQcm() {
@@ -298,7 +368,7 @@ function deleteQcm() {
     }
 }
 
-// --- 5. MOTEUR D'ENTRAÎNEMENT ---
+// --- 5. MOTEUR D'ENTRAÎNEMENT (AVEC AFFICHAGE DE L'IMAGE) ---
 let currentSession = [], currentQuestionIndex = 0, sessionMode = 'training';
 let sessionStats = { totalTime: 0, overtime: 0, answers: [] };
 let globalTimerInterval, localTimerInterval, localTimeElapsed = 0;
@@ -321,10 +391,14 @@ function startCustomSession(type) {
 }
 
 function startSession() {
-    const folderId = document.getElementById('home-folder-select').value;
-    sessionMode = document.getElementById('home-mode-select').value;
+    const folderSel = document.getElementById('home-folder-select');
+    const modeSel = document.getElementById('home-mode-select');
+    const countEl = document.getElementById('home-qcm-count');
+
+    const folderId = folderSel ? folderSel.value : 'all';
+    sessionMode = modeSel ? modeSel.value : 'training';
     
-    let count = parseInt(document.getElementById('home-qcm-count').value);
+    let count = countEl ? parseInt(countEl.value) : 20;
     if (isNaN(count) || count <= 0) count = 20;
     
     let pool = folderId === 'all' ? [...qcms] : qcms.filter(q => q.folderId === folderId);
@@ -346,10 +420,14 @@ function launchUI() {
     sessionStats = { totalTime: 0, overtime: 0, answers: [] };
     
     const qcmView = document.getElementById('view-qcm');
-    qcmView.classList.remove('hidden');
-    qcmView.classList.add('active');
+    if(qcmView) {
+        qcmView.classList.remove('hidden');
+        qcmView.classList.add('active');
+    }
     
-    document.getElementById('qcm-mode-title').innerText = sessionMode === 'exam' ? 'Examen P1' : 'Entraînement P1';
+    const titleEl = document.getElementById('qcm-mode-title');
+    if(titleEl) titleEl.innerText = sessionMode === 'exam' ? 'Examen P1' : 'Entraînement P1';
+    
     startGlobalTimer();
     renderQuestion();
 }
@@ -376,29 +454,49 @@ function renderQuestion() {
         return nextQuestion();
     }
     
-    document.getElementById('qcm-progress-text').innerText = `Question ${currentQuestionIndex + 1} sur ${currentSession.length}`;
-    document.getElementById('qcm-progress-fill').style.width = `${((currentQuestionIndex + 1) / currentSession.length) * 100}%`;
-    document.getElementById('qcm-question-text').innerText = q.question;
+    const progText = document.getElementById('qcm-progress-text');
+    const progFill = document.getElementById('qcm-progress-fill');
+    const qText = document.getElementById('qcm-question-text');
     
-    const container = document.getElementById('qcm-options-container');
-    container.innerHTML = q.options.map((opt, i) => `
-        <div class="qcm-option" id="opt-${i}" onclick="toggleOption(${i})">
-            <div class="option-letter">${opt.letter}</div>
-            <div>${opt.text}</div>
-        </div>
-    `).join('');
+    if(progText) progText.innerText = `Question ${currentQuestionIndex + 1} sur ${currentSession.length}`;
+    if(progFill) progFill.style.width = `${((currentQuestionIndex + 1) / currentSession.length) * 100}%`;
+    if(qText) qText.innerText = q.question;
+    
+    const imgContainer = document.getElementById('qcm-image-container');
+    if (imgContainer) {
+        if (q.imageUrl) {
+            imgContainer.innerHTML = `<img src="${q.imageUrl}" style="max-width: 100%; max-height: 220px; border-radius: 10px; margin-bottom: 20px; display: block; object-fit: contain;">`;
+        } else {
+            imgContainer.innerHTML = '';
+        }
+    }
 
-    document.getElementById('qcm-validate-btn').classList.remove('hidden');
-    document.getElementById('qcm-next-btn').classList.add('hidden');
-    document.getElementById('qcm-back-to-summary-btn').classList.add('hidden');
+    const container = document.getElementById('qcm-options-container');
+    if(container) {
+        container.innerHTML = q.options.map((opt, i) => `
+            <div class="qcm-option" id="opt-${i}" onclick="toggleOption(${i})">
+                <div class="option-letter">${opt.letter}</div>
+                <div>${opt.text}</div>
+            </div>
+        `).join('');
+    }
+
+    const valBtn = document.getElementById('qcm-validate-btn');
+    const nextBtn = document.getElementById('qcm-next-btn');
+    const backBtn = document.getElementById('qcm-back-to-summary-btn');
+
+    if(valBtn) valBtn.classList.remove('hidden');
+    if(nextBtn) nextBtn.classList.add('hidden');
+    if(backBtn) backBtn.classList.add('hidden');
 
     localTimeElapsed = 0;
     clearInterval(localTimerInterval);
     const localDisplay = document.getElementById('qcm-local-timer');
-    localDisplay.classList.remove('timer-danger');
+    if(localDisplay) localDisplay.classList.remove('timer-danger');
     
     if (sessionMode !== 'readonly') {
         localTimerInterval = setInterval(() => {
+            if(!localDisplay) return;
             localTimeElapsed++;
             const timeLeft = 80 - localTimeElapsed;
             if (timeLeft >= 0) {
@@ -410,7 +508,7 @@ function renderQuestion() {
             }
         }, 1000);
     } else {
-        localDisplay.innerText = "--:--";
+        if(localDisplay) localDisplay.innerText = "--:--";
         showCorrection(q);
     }
 }
@@ -462,8 +560,10 @@ function validateQuestion() {
 
     if (sessionMode === 'training') {
         showCorrection(q);
-        document.getElementById('qcm-validate-btn').classList.add('hidden');
-        document.getElementById('qcm-next-btn').classList.remove('hidden');
+        const valBtn = document.getElementById('qcm-validate-btn');
+        const nextBtn = document.getElementById('qcm-next-btn');
+        if(valBtn) valBtn.classList.add('hidden');
+        if(nextBtn) nextBtn.classList.remove('hidden');
     } else {
         nextQuestion();
     }
@@ -487,8 +587,10 @@ function showCorrection(q) {
     });
     
     if(sessionMode === 'readonly') {
-        document.getElementById('qcm-validate-btn').classList.add('hidden');
-        document.getElementById('qcm-back-to-summary-btn').classList.remove('hidden');
+        const valBtn = document.getElementById('qcm-validate-btn');
+        const backBtn = document.getElementById('qcm-back-to-summary-btn');
+        if(valBtn) valBtn.classList.add('hidden');
+        if(backBtn) backBtn.classList.remove('hidden');
     }
 }
 
@@ -502,17 +604,25 @@ function finishSession() {
     clearInterval(globalTimerInterval); clearInterval(localTimerInterval);
     
     const qcmView = document.getElementById('view-qcm');
-    qcmView.classList.remove('active');
-    qcmView.classList.add('hidden');
+    if(qcmView) {
+        qcmView.classList.remove('active');
+        qcmView.classList.add('hidden');
+    }
     
     const summaryView = document.getElementById('view-summary');
-    summaryView.classList.remove('hidden');
-    summaryView.classList.add('active');
+    if(summaryView) {
+        summaryView.classList.remove('hidden');
+        summaryView.classList.add('active');
+    }
     
     let correctCount = sessionStats.answers.filter(a => a.status === 'correct').length;
-    document.getElementById('summary-score').innerText = `${correctCount} / ${currentSession.length}`;
-    document.getElementById('summary-time').innerText = formatTime(sessionStats.totalTime);
-    document.getElementById('summary-overtime').innerText = formatTime(sessionStats.overtime);
+    const scoreEl = document.getElementById('summary-score');
+    const timeEl = document.getElementById('summary-time');
+    const overEl = document.getElementById('summary-overtime');
+
+    if(scoreEl) scoreEl.innerText = `${correctCount} / ${currentSession.length}`;
+    if(timeEl) timeEl.innerText = formatTime(sessionStats.totalTime);
+    if(overEl) overEl.innerText = formatTime(sessionStats.overtime);
     
     const grid = document.getElementById('summary-grid');
     if(grid) {
@@ -524,12 +634,16 @@ function finishSession() {
 
 function reviewQuestion(index) {
     const summaryView = document.getElementById('view-summary');
-    summaryView.classList.remove('active');
-    summaryView.classList.add('hidden');
+    if(summaryView) {
+        summaryView.classList.remove('active');
+        summaryView.classList.add('hidden');
+    }
     
     const qcmView = document.getElementById('view-qcm');
-    qcmView.classList.remove('hidden');
-    qcmView.classList.add('active');
+    if(qcmView) {
+        qcmView.classList.remove('hidden');
+        qcmView.classList.add('active');
+    }
     
     const previousMode = sessionMode;
     sessionMode = 'readonly';
@@ -540,12 +654,16 @@ function reviewQuestion(index) {
 
 function backToSummary() {
     const qcmView = document.getElementById('view-qcm');
-    qcmView.classList.remove('active');
-    qcmView.classList.add('hidden');
+    if(qcmView) {
+        qcmView.classList.remove('active');
+        qcmView.classList.add('hidden');
+    }
     
     const summaryView = document.getElementById('view-summary');
-    summaryView.classList.remove('hidden');
-    summaryView.classList.add('active');
+    if(summaryView) {
+        summaryView.classList.remove('hidden');
+        summaryView.classList.add('active');
+    }
 }
 
 function quitSession() {
@@ -564,7 +682,7 @@ function quitSession() {
     }
 }
 
-// --- 6. EXPORT / IMPORT (Modifié pour Fusionner) / RESET ---
+// --- 6. EXPORT / IMPORT (Fusion) / RESET ---
 function exportData(includeStats) {
     let dataToExport = { folders: folders, qcms: qcms };
     if (!includeStats) {
@@ -594,35 +712,29 @@ function importData(event) {
             const imported = JSON.parse(e.target.result);
             if(imported.folders && imported.qcms) {
                 
-                // FUSION DES DOSSIERS (On garde les vôtres, on ajoute les nouveaux sans écraser)
                 imported.folders.forEach(impFolder => {
                     const existingFolder = folders.find(f => f.name.toLowerCase() === impFolder.name.toLowerCase());
                     if (!existingFolder) {
                         folders.push(impFolder);
                     } else {
-                        // S'il existe déjà, on lui donne un identifiant pour raccrocher les QCM si besoin
                         impFolder.oldId = impFolder.id;
                         impFolder.id = existingFolder.id;
                     }
                 });
 
-                // FUSION DES QCM (On ajoute les nouveaux QCM dans les bons dossiers)
                 imported.qcms.forEach(impQcm => {
-                    // On vérifie si le QCM existe déjà (par son intitulé exact) pour éviter les doublons parfaits
                     const exists = qcms.some(q => q.question.trim().toLowerCase() === impQcm.question.trim().toLowerCase());
                     if (!exists) {
-                        // Si le dossier cible a été mappé suite à une fusion, on met à jour son ID
                         const matchingFolder = folders.find(f => f.id === impQcm.folderId || f.oldId === impQcm.folderId);
                         if (matchingFolder) {
                             impQcm.folderId = matchingFolder.id;
                         }
-                        // S'il n'a pas de dossier valide, on le met dans le premier dossier dispo ou racine
                         qcms.push(impQcm);
                     }
                 });
 
                 saveData();
-                alert('Importation et fusion réussies ! Vos cartes existantes ont été conservées.');
+                alert('Importation et fusion réussies !');
                 location.reload();
             } else {
                 alert("Fichier non reconnu.");
