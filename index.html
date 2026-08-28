@@ -64,6 +64,11 @@
                 <select id="create-folder-select"></select>
                 <label>Question</label>
                 <textarea id="create-question" placeholder="Intitulé de la question..."></textarea>
+                
+                <!-- AJOUT IMAGE MANUEL -->
+                <label>Image (optionnelle)</label>
+                <input type="file" id="create-image-input" accept="image/*">
+
                 <div id="create-items-container"></div>
                 <button class="btn-primary mt-2" onclick="saveNewQCM()">ENREGISTRER LE QCM</button>
             </div>
@@ -108,7 +113,7 @@
         </div>
     </div>
 
-    <!-- VUES FULLSCREEN (QCM & BILAN) - Corrigées (plus de "hidden") -->
+    <!-- VUES FULLSCREEN (QCM & BILAN) -->
     <div id="view-qcm" class="view-fullscreen">
         <header class="qcm-header">
             <button class="btn-back" onclick="quitSession()">❮ Quitter</button>
@@ -121,6 +126,9 @@
         
         <div class="content qcm-content">
             <h2 id="qcm-question-text"></h2>
+            <!-- Conteneur dynamique pour l'image de la question -->
+            <div id="qcm-image-container"></div>
+            
             <div id="qcm-options-container"></div>
             
             <button id="qcm-validate-btn" class="btn-primary mt-2" onclick="validateQuestion()">VALIDER</button>
@@ -170,6 +178,11 @@
             <h3>Modifier le QCM</h3>
             <label>Question</label>
             <input type="text" id="edit-qcm-question">
+            
+            <!-- AJOUT IMAGE MODIFICATION -->
+            <label>Changer / Ajouter une image</label>
+            <input type="file" id="edit-qcm-image-input" accept="image/*">
+
             <label>Dossier</label>
             <select id="edit-qcm-folder"></select>
             
@@ -198,6 +211,6 @@
         <div class="tab" onclick="switchTab('settings')">⚙️<br>Réglages</div>
     </nav>
 
-    <script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
