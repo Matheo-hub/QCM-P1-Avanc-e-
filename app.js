@@ -192,7 +192,7 @@ function updateFolderSelects() {
     if(editSel) editSel.innerHTML = createOptions;
 }
 
-// --- 4. GESTION DES QCM (AVEC IMAGES MANUELLES) ---
+// --- 4. GESTION DES QCM ---
 function renderCreateItems() {
     const container = document.getElementById('create-items-container');
     if(!container) return;
@@ -368,7 +368,7 @@ function deleteQcm() {
     }
 }
 
-// --- 5. MOTEUR D'ENTRAÎNEMENT (AVEC AFFICHAGE DE L'IMAGE) ---
+// --- 5. MOTEUR D'ENTRAÎNEMENT ---
 let currentSession = [], currentQuestionIndex = 0, sessionMode = 'training';
 let sessionStats = { totalTime: 0, overtime: 0, answers: [] };
 let globalTimerInterval, localTimerInterval, localTimeElapsed = 0;
@@ -682,7 +682,7 @@ function quitSession() {
     }
 }
 
-// --- 6. EXPORT / IMPORT (Fusion) / RESET ---
+// --- 6. EXPORT / IMPORT / RESET ---
 function exportData(includeStats) {
     let dataToExport = { folders: folders, qcms: qcms };
     if (!includeStats) {
