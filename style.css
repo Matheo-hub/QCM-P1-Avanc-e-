@@ -82,3 +82,4 @@ textarea { height: 120px; resize: none; }
 .tab { text-align: center; color: var(--text-muted); font-size: 12px; cursor: pointer; flex: 1; padding: 10px 0; }
 .tab.active { color: var(--accent); }
 .tutorial-card p { margin-bottom: 10px; font-size: 14px; color: var(--text-muted); }
+
