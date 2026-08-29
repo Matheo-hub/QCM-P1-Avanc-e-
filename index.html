@@ -10,7 +10,6 @@
 </head>
 <body>
 
-    <!-- VUE ACCUEIL -->
     <div id="view-home" class="view active">
         <header class="top-nav">
             <h1>Entraînement P1</h1>
@@ -40,7 +39,6 @@
         </div>
     </div>
 
-    <!-- VUE DOSSIERS -->
     <div id="view-folders" class="view">
         <header class="top-nav">
             <h1>Mes Dossiers</h1>
@@ -51,13 +49,11 @@
         </div>
     </div>
 
-    <!-- VUE CRÉER -->
     <div id="view-create" class="view">
         <header class="top-nav">
             <h1>Créer un QCM</h1>
         </header>
         <div class="content">
-            <!-- Ajout Classique -->
             <div class="card">
                 <h3>Ajout Classique</h3>
                 <label>Dossier cible</label>
@@ -65,7 +61,6 @@
                 <label>Question</label>
                 <textarea id="create-question" placeholder="Intitulé de la question..."></textarea>
                 
-                <!-- AJOUT IMAGE MANUEL -->
                 <label>Image (optionnelle)</label>
                 <input type="file" id="create-image-input" accept="image/*">
 
@@ -73,7 +68,6 @@
                 <button class="btn-primary mt-2" onclick="saveNewQCM()">ENREGISTRER LE QCM</button>
             </div>
 
-            <!-- Ajout Rapide -->
             <div class="card mt-2">
                 <h3>Ajout Rapide</h3>
                 <label>Ajouter dans :</label>
@@ -85,7 +79,6 @@
         </div>
     </div>
 
-    <!-- VUE PARAMÈTRES -->
     <div id="view-settings" class="view">
         <header class="top-nav">
             <h1>Paramètres</h1>
@@ -104,16 +97,9 @@
                 <h3>Réinitialisation</h3>
                 <button class="btn-danger" onclick="clearAllData()">Effacer toutes les données</button>
             </div>
-            
-            <div class="card mt-2 tutorial-card">
-                <h3>Comment ça marche ?</h3>
-                <p><strong>Dossiers :</strong> Clique sur un dossier pour le dérouler. Utilise le bouton "Modifier" pour changer son nom ou l'emplacement. Clique sur un QCM pour le modifier.</p>
-                <p><strong>Minuteur :</strong> Tu as 1min20 par question. Si tu dépasses, le chrono devient rouge mais ne te bloque pas.</p>
-            </div>
         </div>
     </div>
 
-    <!-- VUES FULLSCREEN (QCM & BILAN) -->
     <div id="view-qcm" class="view-fullscreen">
         <header class="qcm-header">
             <button class="btn-back" onclick="quitSession()">❮ Quitter</button>
@@ -126,9 +112,7 @@
         
         <div class="content qcm-content">
             <h2 id="qcm-question-text"></h2>
-            <!-- Conteneur dynamique pour l'image de la question -->
             <div id="qcm-image-container"></div>
-            
             <div id="qcm-options-container"></div>
             
             <button id="qcm-validate-btn" class="btn-primary mt-2" onclick="validateQuestion()">VALIDER</button>
@@ -157,7 +141,6 @@
         </div>
     </div>
 
-    <!-- MODAL DOSSIER -->
     <div id="modal-folder" class="modal hidden">
         <div class="modal-content">
             <h3 id="modal-folder-title">Modifier le dossier</h3>
@@ -172,14 +155,12 @@
         </div>
     </div>
 
-    <!-- MODAL MODIFIER QCM -->
     <div id="modal-edit-qcm" class="modal hidden">
         <div class="modal-content" style="max-height: 85vh; overflow-y: auto;">
             <h3>Modifier le QCM</h3>
             <label>Question</label>
             <input type="text" id="edit-qcm-question">
             
-            <!-- AJOUT IMAGE MODIFICATION -->
             <label>Changer / Ajouter une image</label>
             <input type="file" id="edit-qcm-image-input" accept="image/*">
 
@@ -203,7 +184,6 @@
         </div>
     </div>
 
-    <!-- TAB BAR -->
     <nav class="tab-bar">
         <div class="tab active" onclick="switchTab('home')">🏠<br>Accueil</div>
         <div class="tab" onclick="switchTab('folders')">📁<br>Dossiers</div>
@@ -211,6 +191,6 @@
         <div class="tab" onclick="switchTab('settings')">⚙️<br>Réglages</div>
     </nav>
 
-    <script src="script.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
